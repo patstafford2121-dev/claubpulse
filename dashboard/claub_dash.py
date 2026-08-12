@@ -46,11 +46,11 @@ DEFAULT_CONFIG = {
     "strategies": [
         {"key": "zenith", "name": "Streak Pulse · S&P 500",
          "symbol": "#USSPX500", "tf_name": "H1", "magic": 79001,
-         "buy_x": 4, "sell_x": 12,
+         "buy_x": 4, "sell_x": 12, "pip_size": 1.0,
          "inputs": "percRisk 3.4 · SL 23000 / TP 35000 · trail 33000/7500"},
         {"key": "cable", "name": "Streak Pulse · GBPUSD",
          "symbol": "GBPUSD", "tf_name": "M5", "magic": 79002,
-         "buy_x": 6, "sell_x": 6,
+         "buy_x": 6, "sell_x": 6, "pip_size": 0.0001,
          "inputs": "0.05 lots · SL 320 / TP 390 · trail 230/190"},
     ],
 }
@@ -201,10 +201,14 @@ def read_account() -> dict:
         if outs:
             o = outs[-1]
             c = (o.comment or "").lower()
+            ps = next((s.get("pip_size", 1.0) for s in STRATS
+                       if s["magic"] == i0.magic), 1.0)
+            direction = 1 if i0.type == 0 else -1
             t.update({
                 "exit_time": o.time, "exit_price": o.price,
                 "pnl": round(sum(x.profit + x.swap + x.commission
                                  for x in ds), 2),
+                "pips": round((o.price - i0.price) / ps * direction, 1),
                 "reason": ("tp" if "tp" in c else
                            "sl" if "sl" in c else (c[:14] or "close")),
             })
@@ -249,7 +253,19 @@ def build_summary(equity, balance, floating, algo, strat_out, trades) -> dict:
         "max_drawdown_pct": round(mdd, 2),
         "total_return_pct": round(pnl_total / START_EQ * 100, 2),
         "starting_equity": START_EQ,
+        "net_pips": round(sum(t.get("pips") or 0 for t in closed), 1),
+        "floating_pct": round(floating / START_EQ * 100, 2),
     }
+    for s in strat_out:
+        s["pips_total"] = round(sum(t["pips"] for t in closed
+                                    if t["strategy"] == s["key"]
+                                    and t.get("pips") is not None), 1)
+    weekly: dict = {}
+    for t in closed:
+        iso = datetime.utcfromtimestamp(t["exit_time"]).isocalendar()
+        wk = f"{iso[0]}-W{iso[1]:02d}"
+        weekly[wk] = round(weekly.get(wk, 0.0) + t["pnl"], 2)
+    weekly_pnl = [{"week": k, "pnl": v} for k, v in sorted(weekly.items())]
     xp = 15 * len(closed) + 10 * len(wins)
     strat_keys = {t["strategy"] for t in closed}
     badge_defs = [
@@ -273,7 +289,7 @@ def build_summary(equity, balance, floating, algo, strat_out, trades) -> dict:
     }
     return {"balance": balance, "equity": equity, "floating": floating,
             "algo": algo, "strategies": strat_out, "trades": trades[-80:],
-            "stats": stats, "game": game}
+            "stats": stats, "game": game, "weekly_pnl": weekly_pnl}
 
 
 def sample_state() -> dict:
@@ -294,7 +310,10 @@ def sample_state() -> dict:
                 "volume": 0.05, "entry_time": t - 3600,
                 "entry_price": 7700 + rng.uniform(-40, 40),
                 "exit_time": t, "exit_price": 7700 + rng.uniform(-40, 40),
-                "pnl": pnl, "reason": "tp" if pnl > 0 else "sl"})
+                "pnl": pnl,
+                "pips": round(abs(pnl) * rng.uniform(0.4, 1.2)
+                              * (1 if pnl >= 0 else -1), 1),
+                "reason": "tp" if pnl > 0 else "sl"})
         eq = round(bal + math.sin(i / 25) * 18 + rng.uniform(-6, 6), 2)
         hist.append({"t": t, "equity": eq, "balance": bal})
     strat_out = []

@@ -79,6 +79,7 @@
   .badge.on { border-color: rgba(88,183,144,.45); color: #58B790; box-shadow: 0 0 10px rgba(88,183,144,.13); }
   .badge.off { opacity: .45; }
   svg text { font-family: Consolas, Menlo, monospace; fill: #93A1B2; }
+  #miniNeedleG { transition: transform 0.9s cubic-bezier(.3,1.2,.4,1); transform-origin: 200px 190px; }
   #needleG { transition: transform 0.9s cubic-bezier(.3,1.2,.4,1); transform-origin: 200px 190px; }
   .gate { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 10px;
     padding: 10px; border-radius: 12px; border: 1px solid #2A333F; background: #12161C; }
@@ -139,13 +140,13 @@
 
   <div class="row row1">
     <div class="card">
-      <h3>Total P&amp;L · demo forward run</h3>
-      <div class="hero-pnl tnum" id="heroPnl">$0.00</div>
+      <h3>Percentage · risk &amp; return — keep this top of mind</h3>
+      <div class="hero-pnl tnum" id="heroPct">+0.00%</div>
       <div class="hero-sub">
-        <span>Return <span class="mono" id="heroRet">0%</span></span>
+        <span>Floating <span class="mono" id="heroFloatPct">0%</span></span>
+        <span>Max DD <span class="mono" id="heroDD">0%</span></span>
         <span>Equity <span class="mono" id="heroEq">—</span></span>
         <span>Start <span class="mono" id="heroStart">$10,000</span></span>
-        <span>Floating <span class="mono" id="heroFloat">—</span></span>
       </div>
       <div class="legend">
         <span><span class="sw" style="border-color:#3D84CC"></span>Equity</span>
@@ -160,6 +161,13 @@
       <h3>Live stats</h3>
       <div class="tiles" id="tiles"></div>
     </div>
+  </div>
+
+  <div class="card">
+    <h3>Graph view · trade constellation</h3>
+    <canvas id="graph" style="width:100%;height:330px;display:block;border-radius:8px"></canvas>
+    <div id="gTip" style="position:absolute;pointer-events:none;display:none;background:#12161C;border:1px solid #2A333F;border-radius:6px;padding:0.4rem 0.6rem;font-size:0.72rem;color:#E4E9EF;font-variant-numeric:tabular-nums;white-space:nowrap;z-index:2"></div>
+    <p class="caption">Each node is a trade — sized by P/L, green wins, red losses, pulsing blue while open. Hubs are the two strategies. Hover a node for details.</p>
   </div>
 
   <div class="row row2">
@@ -181,57 +189,52 @@
         </div>
       </div>
       <div class="badges" id="badges"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <div style="text-align:center" id="miniWrap" title="live signal">
+          <svg id="miniGauge" viewBox="0 0 400 215" width="140" role="img" aria-label="Mini signal gauge: SELL left (12 bulls), BUY right (4 bears)">
+            <defs>
+              <linearGradient id="arcL" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0" stop-color="#E08585" stop-opacity="0.15"/>
+                <stop offset="1" stop-color="#E08585" stop-opacity="0.75"/>
+              </linearGradient>
+              <linearGradient id="arcR" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#3A4552" stop-opacity="0.6"/>
+                <stop offset="1" stop-color="#58B790" stop-opacity="0.85"/>
+              </linearGradient>
+            </defs>
+            <path d="M 40 190 A 160 160 0 0 1 200 30" fill="none" stroke="url(#arcL)" stroke-width="22" stroke-linecap="round"/>
+            <path d="M 200 30 A 160 160 0 0 1 360 190" fill="none" stroke="url(#arcR)" stroke-width="22" stroke-linecap="round"/>
+            <text x="52" y="212" font-size="26" text-anchor="middle">SELL</text>
+            <text x="348" y="212" font-size="26" text-anchor="middle">BUY</text>
+            <g id="miniNeedleG">
+              <line x1="200" y1="190" x2="200" y2="58" stroke="#E4E9EF" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="200" cy="190" r="14" fill="#E4E9EF"/>
+            </g>
+          </svg>
+          <div id="miniMsg" class="mono" style="font-size:10px;color:#93A1B2;margin-top:2px">—</div>
+        </div>
+      </div>
     </div>
 
     <div class="card">
-      <h3>Live signal · Zenith speedo (#USSPX500 H1)</h3>
-      <svg viewBox="0 0 400 215" width="100%" role="img" aria-label="Signal gauge: needle position shows progress toward SELL (left, 12 bullish bars, fade) or BUY (right, 4 bearish bars, dip)">
-        <defs>
-          <linearGradient id="arcL" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0" stop-color="#E08585" stop-opacity="0.15"/>
-            <stop offset="1" stop-color="#E08585" stop-opacity="0.75"/>
-          </linearGradient>
-          <linearGradient id="arcR" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stop-color="#3A4552" stop-opacity="0.6"/>
-            <stop offset="1" stop-color="#58B790" stop-opacity="0.85"/>
-          </linearGradient>
-        </defs>
-        <path d="M 40 190 A 160 160 0 0 1 200 30" fill="none" stroke="url(#arcL)" stroke-width="16" stroke-linecap="round"/>
-        <path d="M 200 30 A 160 160 0 0 1 360 190" fill="none" stroke="url(#arcR)" stroke-width="16" stroke-linecap="round"/>
-        <g id="ticks"></g>
-        <text x="52" y="209" font-size="12" text-anchor="middle">SELL 12/12</text>
-        <text x="200" y="16" font-size="11" text-anchor="middle">NEUTRAL</text>
-        <text x="348" y="209" font-size="12" text-anchor="middle">BUY 4/4</text>
-        <g id="needleG">
-          <line x1="200" y1="190" x2="200" y2="52" stroke="#E4E9EF" stroke-width="3.5" stroke-linecap="round"/>
-          <circle cx="200" cy="190" r="9" fill="#E4E9EF"/>
-        </g>
-        <text id="gaugeMsg" x="200" y="180" font-size="15" text-anchor="middle" style="fill:#E4E9EF;font-weight:600"></text>
-      </svg>
-      <div class="gate">
-        <div class="light"><div class="led" id="ledZen"></div>ZENITH 4 BEARS</div>
-        <div style="font-size:18px;color:#93A1B2">·</div>
-        <div class="light"><div class="led" id="ledCab"></div>CABLE 6-STREAK</div>
-        <div style="width:1px;height:32px;background:#2A333F"></div>
-        <div class="gate-out" id="gateOut">◦ IDLE</div>
+      <h3>Fiat P&amp;L · weekly waterfall — the accounting truth</h3>
+      <div class="hero-pnl tnum" id="fiatPnl" style="font-size:30px">+$0.00</div>
+      <div class="hero-sub">
+        <span>This week (realized) <span class="mono" id="fiatWeek">$0.00</span></span>
+        <span>Floating (not banked) <span class="mono" id="fiatFloat">$0.00</span></span>
       </div>
+      <svg id="wf" viewBox="0 0 460 230" width="100%" role="img" aria-label="Weekly realized fiat P&L waterfall with running total"></svg>
+      <p class="caption" id="wfCaption">the waterfall starts with the first banked trade — each bar is a week's realized cash, the last bar is the running total</p>
     </div>
   </div>
 
   <div id="strats"></div>
 
   <div class="card">
-    <h3>Graph view · trade constellation</h3>
-    <canvas id="graph" style="width:100%;height:330px;display:block;border-radius:8px"></canvas>
-    <div id="gTip" style="position:absolute;pointer-events:none;display:none;background:#12161C;border:1px solid #2A333F;border-radius:6px;padding:0.4rem 0.6rem;font-size:0.72rem;color:#E4E9EF;font-variant-numeric:tabular-nums;white-space:nowrap;z-index:2"></div>
-    <p class="caption">Each node is a trade — sized by P/L, green wins, red losses, pulsing blue while open. Hubs are the two strategies. Hover a node for details.</p>
-  </div>
-
-  <div class="card">
     <h3>Trade history · <span id="tlCount">0</span> closed</h3>
     <div class="tl-wrap">
       <table>
-        <thead><tr><th>Entry (srv)</th><th>Strategy</th><th>Side</th><th>Lots</th><th>Entry</th><th>Exit</th><th>Reason</th><th>P&amp;L</th></tr></thead>
+        <thead><tr><th>Entry (srv)</th><th>Strategy</th><th>Side</th><th>Lots</th><th>Entry</th><th>Exit</th><th>Reason</th><th>Pips</th><th>P&amp;L</th></tr></thead>
         <tbody id="tlBody"></tbody>
       </table>
       <p class="caption" id="tlEmpty">no closed trades yet — the log fills as the bots take their first signals</p>
@@ -253,24 +256,38 @@ const money = v => "$" + Math.abs(v).toLocaleString(undefined, { minimumFraction
 const signed = v => (v < 0 ? "−" : "+") + money(v);
 const srvTime = t => new Date(t * 1000).toLocaleString([], { timeZone: "UTC", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
-(function ticks() {
-  const g = $("ticks");
-  const mk = (angleDeg, len) => {
-    const a = (180 + angleDeg) * Math.PI / 180, r1 = 148, r2 = 148 - len;
-    return `<line x1="${200 + r1 * Math.cos(a)}" y1="${190 + r1 * Math.sin(a)}" x2="${200 + r2 * Math.cos(a)}" y2="${190 + r2 * Math.sin(a)}" stroke="#3A4552" stroke-width="2"/>`;
-  };
-  let h = "";
-  for (let i = 0; i <= 12; i++) h += mk(i * 90 / 12, i === 0 || i === 12 ? 12 : 7);
-  for (let i = 1; i <= 4; i++)  h += mk(90 + i * 90 / 4, i === 4 ? 12 : 7);
-  g.innerHTML = h;
-})();
-
-function setNeedle(bull, bear) {
-  let deg = 0, msg = "flat / mixed";
-  if (bear > 0) { deg = 90 * Math.min(bear / 4, 1); msg = bear >= 4 ? "BUY-THE-DIP ZONE" : `${4 - bear} bears to BUY`; }
-  else if (bull > 0) { deg = -90 * Math.min(bull / 12, 1); msg = bull >= 12 ? "SELL-THE-FADE ZONE" : `${12 - bull} bulls to SELL`; }
-  $("needleG").style.transform = `rotate(${deg}deg)`;
-  $("gaugeMsg").textContent = msg;
+function drawWaterfall(weekly, total) {
+  const svg = $("wf");
+  if (!weekly || !weekly.length) { svg.innerHTML = ""; $("wfCaption").textContent = "the waterfall starts with the first banked trade — each bar is a week's realized cash, the last bar is the running total"; return; }
+  const W = 460, H = 230, L = 56, R = 10, T = 16, B = 30;
+  const bars = weekly.slice(-10);
+  let cum = 0;
+  const steps = bars.map(w => { const from = cum; cum += w.pnl; return { ...w, from, to: cum }; });
+  const lo = Math.min(0, ...steps.map(s => Math.min(s.from, s.to)));
+  const hi = Math.max(0, ...steps.map(s => Math.max(s.from, s.to)), cum);
+  const span = Math.max(1, hi - lo);
+  const n = steps.length + 1;
+  const bw = Math.min(56, (W - L - R) / n * 0.62);
+  const X = i => L + (W - L - R) * (i + 0.5) / n;
+  const Y = v => T + (H - T - B) * (1 - (v - lo) / span);
+  let g = `<line x1="${L}" y1="${Y(0)}" x2="${W - R}" y2="${Y(0)}" stroke="#3A4552"/>`;
+  g += `<text x="${L - 6}" y="${Y(0) + 3.5}" font-size="10" text-anchor="end">$0</text>`;
+  steps.forEach((s, i) => {
+    const x = X(i), up = s.pnl >= 0, col = up ? "#58B790" : "#E08585";
+    const y0 = Y(Math.max(s.from, s.to)), h = Math.max(2, Math.abs(Y(s.from) - Y(s.to)));
+    g += `<rect x="${x - bw / 2}" y="${y0}" width="${bw}" height="${h}" rx="3" fill="${col}"><title>${s.week}: ${(s.pnl < 0 ? "−" : "+") + "$" + Math.abs(s.pnl).toFixed(2)}</title></rect>`;
+    if (i < steps.length - 1) g += `<line x1="${x + bw / 2}" y1="${Y(s.to)}" x2="${X(i + 1) - bw / 2}" y2="${Y(s.to)}" stroke="#3A4552" stroke-dasharray="3 3"/>`;
+    else g += `<line x1="${x + bw / 2}" y1="${Y(s.to)}" x2="${X(i + 1) - bw / 2}" y2="${Y(s.to)}" stroke="#3A4552" stroke-dasharray="3 3"/>`;
+    g += `<text x="${x}" y="${H - 12}" font-size="9" text-anchor="middle">${s.week.slice(5)}</text>`;
+    g += `<text x="${x}" y="${y0 - 4}" font-size="9" text-anchor="middle">${(s.pnl < 0 ? "−" : "+") + Math.abs(s.pnl).toFixed(0)}</text>`;
+  });
+  const xt = X(steps.length), tc = "#3D84CC";
+  const ty0 = Y(Math.max(0, cum)), th = Math.max(2, Math.abs(Y(0) - Y(cum)));
+  g += `<rect x="${xt - bw / 2}" y="${ty0}" width="${bw}" height="${th}" rx="3" fill="${tc}"><title>running total: ${(cum < 0 ? "−" : "+") + "$" + Math.abs(cum).toFixed(2)}</title></rect>`;
+  g += `<text x="${xt}" y="${H - 12}" font-size="9" text-anchor="middle">TOTAL</text>`;
+  g += `<text x="${xt}" y="${ty0 - 4}" font-size="9" text-anchor="middle" style="fill:#7FA8CE">${(cum < 0 ? "−" : "+") + Math.abs(cum).toFixed(0)}</text>`;
+  svg.innerHTML = g;
+  $("wfCaption").textContent = `${weekly.length} week${weekly.length === 1 ? "" : "s"} of realized fiat P&L (spreads, swaps and commissions included) · blue bar = running total`;
 }
 
 function niceTicks(lo, hi, n) {
@@ -282,21 +299,25 @@ function niceTicks(lo, hi, n) {
 }
 
 let chartScale = null;
-function drawChart(hist) {
+function drawChart(histRaw, startEq) {
   const svg = $("eqChart");
-  if (!hist || hist.length < 2) { svg.innerHTML = ""; chartScale = null; $("eqCaption").textContent = "collecting equity samples…"; return; }
+  if (!histRaw || histRaw.length < 2) { svg.innerHTML = ""; chartScale = null; $("eqCaption").textContent = "collecting equity samples…"; return; }
+  const s0 = startEq || 10000;
+  const hist = histRaw.map(p => ({ t: p.t,
+    equity: (p.equity / s0 - 1) * 100, balance: (p.balance / s0 - 1) * 100,
+    eqF: p.equity, balF: p.balance }));
   const W = 620, H = 220, L = 58, R = 10, T = 10, B = 24;
   const t0 = hist[0].t, t1 = hist[hist.length - 1].t;
   let lo = Infinity, hi = -Infinity;
   for (const p of hist) { lo = Math.min(lo, p.equity, p.balance); hi = Math.max(hi, p.equity, p.balance); }
-  if (hi - lo < 1) { const m = (hi + lo) / 2; lo = m - 1; hi = m + 1; }
+  if (hi - lo < 0.02) { const m = (hi + lo) / 2; lo = m - 0.01; hi = m + 0.01; }
   const pad = (hi - lo) * 0.1; lo -= pad; hi += pad;
   const X = t => L + (W - L - R) * (t - t0) / Math.max(1, t1 - t0);
   const Y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
   let g = "";
   for (const v of niceTicks(lo, hi, 4)) {
     g += `<line x1="${L}" y1="${Y(v).toFixed(1)}" x2="${W - R}" y2="${Y(v).toFixed(1)}" stroke="#232B36"/>`;
-    g += `<text x="${L - 6}" y="${(Y(v) + 3.5).toFixed(1)}" font-size="10" text-anchor="end">${v.toFixed(0)}</text>`;
+    g += `<text x="${L - 6}" y="${(Y(v) + 3.5).toFixed(1)}" font-size="10" text-anchor="end">${(v >= 0 ? "+" : "") + v.toFixed(2)}%</text>`;
   }
   for (let i = 0; i <= 4; i++) {
     const t = t0 + (t1 - t0) * i / 4, d = new Date(t * 1000);
@@ -331,7 +352,8 @@ eqSvg.addEventListener("pointermove", e => {
   $("eqDotB").setAttribute("cx", x); $("eqDotB").setAttribute("cy", Y(p.balance)); $("eqDotB").style.display = "";
   const tip = $("eqTip"), card = eqSvg.parentElement.getBoundingClientRect();
   tip.innerHTML = new Date(p.t * 1000).toLocaleString([], { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) +
-    `<br><span style="color:#3D84CC">●</span> equity ${p.equity.toFixed(2)}<br><span style="color:#AD8438">●</span> balance ${p.balance.toFixed(2)}`;
+    `<br><span style="color:#3D84CC">●</span> equity ${(p.equity >= 0 ? "+" : "") + p.equity.toFixed(2)}% · $${p.eqF.toFixed(2)}` +
+    `<br><span style="color:#AD8438">●</span> balance ${(p.balance >= 0 ? "+" : "") + p.balance.toFixed(2)}% · $${p.balF.toFixed(2)}`;
   tip.style.display = "block";
   const tx = e.clientX - card.left;
   tip.style.left = (tx + 140 > card.width ? tx - 130 : tx + 14) + "px";
@@ -366,6 +388,7 @@ function stratCard(s) {
     <p class="sigline">${sig} <span style="color:#93A1B2;font-weight:400">· BUY after ${s.buy_x} bears, SELL after ${s.sell_x} bulls · px ${s.price ?? "—"}</span></p>
     <div class="barstrip" title="Last 16 completed ${s.tf_name} bars (left = oldest)">${strip}</div>
     <div class="statrow">
+      <span>pips <b class="${(s.pips_total ?? 0) < 0 ? "pl-neg" : "pl-pos"}">${(s.pips_total ?? 0) >= 0 ? "+" : "−"}${Math.abs(s.pips_total ?? 0).toFixed(1)}</b></span>
       <span>floating <b class="${s.floating < 0 ? "pl-neg" : "pl-pos"}">${signed(s.floating)}</b></span>
       <span>closed P/L <b class="${s.realized_total < 0 ? "pl-neg" : "pl-pos"}">${signed(s.realized_total)}</b></span>
       <span>deals <b>${s.deal_count}</b></span>
@@ -376,6 +399,21 @@ function stratCard(s) {
 
 function clock() { $("clock").textContent = new Date().toLocaleTimeString(); }
 setInterval(clock, 1000); clock();
+
+/* mini gauge: cycles through the running strategies every 5 s */
+let miniStrats = [], miniIdx = 0;
+function renderMini() {
+  if (!miniStrats.length) return;
+  const s = miniStrats[miniIdx % miniStrats.length];
+  const bull = s.bull ?? 0, bear = s.bear ?? 0;
+  let deg = 0, msg = "flat / mixed";
+  if (bear > 0) { deg = 90 * Math.min(bear / s.buy_x, 1); msg = bear >= s.buy_x ? "BUY ZONE" : `${s.buy_x - bear} more bear${s.buy_x - bear === 1 ? "" : "s"} to BUY`; }
+  else if (bull > 0) { deg = -90 * Math.min(bull / s.sell_x, 1); msg = bull >= s.sell_x ? "SELL ZONE" : `${s.sell_x - bull} more bull${s.sell_x - bull === 1 ? "" : "s"} to SELL`; }
+  $("miniNeedleG").style.transform = `rotate(${deg}deg)`;
+  $("miniMsg").textContent = `${s.key.toUpperCase()} · ${msg}`;
+  $("miniWrap").title = `${s.name} · ${s.symbol} ${s.tf_name}`;
+}
+setInterval(() => { miniIdx++; renderMini(); }, 5000);
 
 /* ---------- Graph view: force-directed trade constellation ---------- */
 const gNodes = new Map();   // id -> node (positions persist across refreshes)
@@ -534,26 +572,40 @@ async function refresh() {
     $("connDot").className = "dot"; $("connTxt").textContent = "LIVE";
     $("acctPill").textContent = `${a.login} · ${a.server}`;
 
-    // hero
+    // hero: PERCENTAGE first — the risk metric
     const st = a.stats || {};
     const pnl = (a.equity ?? 0) - (st.starting_equity ?? 10000);
-    const hp = $("heroPnl");
-    hp.textContent = signed(pnl); hp.className = "hero-pnl tnum " + (pnl < 0 ? "pl-neg" : "pl-pos");
-    const hr = $("heroRet");
-    hr.textContent = (st.total_return_pct >= 0 ? "+" : "") + (st.total_return_pct ?? 0) + "%";
-    hr.className = "mono " + (st.total_return_pct < 0 ? "pl-neg" : "pl-pos");
+    const retPct = st.total_return_pct ?? 0;
+    const hp = $("heroPct");
+    hp.textContent = (retPct >= 0 ? "+" : "−") + Math.abs(retPct).toFixed(2) + "%";
+    hp.className = "hero-pnl tnum " + (retPct < 0 ? "pl-neg" : "pl-pos");
+    const hf = $("heroFloatPct");
+    hf.textContent = ((st.floating_pct ?? 0) >= 0 ? "+" : "−") + Math.abs(st.floating_pct ?? 0).toFixed(2) + "%";
+    hf.className = "mono " + ((st.floating_pct ?? 0) < 0 ? "pl-neg" : "pl-pos");
+    $("heroDD").textContent = (st.max_drawdown_pct ?? 0).toFixed(2) + "%";
     $("heroEq").textContent = money(a.equity ?? 0);
     $("heroStart").textContent = money(st.starting_equity ?? 10000);
-    $("heroFloat").textContent = signed(a.floating ?? 0);
 
-    // stats tiles
+    // fiat card
+    const fp = $("fiatPnl");
+    fp.textContent = signed(pnl); fp.className = "hero-pnl tnum " + (pnl < 0 ? "pl-neg" : "pl-pos");
+    const wk = a.weekly_pnl || [];
+    const nowIso = (() => { const d = new Date(); const o = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const w = Math.ceil((((d - o) / 86400000) + o.getUTCDay() + 1) / 7);
+      return `${d.getUTCFullYear()}-W${String(w).padStart(2, "0")}`; })();
+    const thisWk = wk.find(x => x.week === nowIso);
+    $("fiatWeek").textContent = thisWk ? signed(thisWk.pnl) : "$0.00";
+    $("fiatFloat").textContent = signed(a.floating ?? 0);
+    drawWaterfall(wk, pnl);
+
+    // stats tiles — pips = the strategy metric
     const tiles = [
+      ["Net pips", ((st.net_pips ?? 0) >= 0 ? "+" : "−") + Math.abs(st.net_pips ?? 0), "raw market distance, size-blind", (st.net_pips ?? 0) >= 0],
       ["Win rate", (st.win_rate_pct ?? 0) + "%", (st.n_trades ?? 0) + " closed trades", st.win_rate_pct >= 50],
       ["Profit factor", st.profit_factor ?? "–", "wins ÷ losses", (st.profit_factor ?? 0) >= 1],
-      ["Max drawdown", (st.max_drawdown_pct ?? 0) + "%", "equity peak-to-trough", false],
+      ["Avg win / loss", (st.avg_win ?? 0).toFixed(0) + " / " + (st.avg_loss ?? 0).toFixed(0), "fiat, per closed trade", null],
       ["Trades", st.n_trades ?? 0, (a.strategies || []).map(x => x.key + " " + x.deal_count).join(" · "), null],
-      ["Best trade", signed(st.best ?? 0), "single close", (st.best ?? 0) >= 0],
-      ["Worst trade", signed(st.worst ?? 0), "single close", false],
+      ["Best / worst", signed(st.best ?? 0) + " · " + signed(st.worst ?? 0), "single closes", null],
     ];
     $("tiles").innerHTML = tiles.map(([k, v, sub, good]) =>
       `<div class="tile"><div class="k">${k}</div><div class="v ${good === null ? "" : good ? "pl-pos" : "pl-neg"}">${v}</div><div class="s">${sub}</div></div>`).join("");
@@ -572,20 +624,10 @@ async function refresh() {
     $("badges").innerHTML = (g.badges || []).map(b =>
       `<div class="badge ${b.on ? "on" : "off"}">${b.on ? "★" : "☆"} ${b.name}</div>`).join("");
 
-    // speedo + gates
+    // strategy panels + mini gauge data
     const strats = a.strategies || [];
-    const zen = strats.find(x => x.key === "zenith") || {};
-    const cab = strats.find(x => x.key === "cable") || {};
-    setNeedle(zen.bull ?? 0, zen.bear ?? 0);
-    const zenHit = (zen.to_buy === 0 || zen.to_sell === 0);
-    const cabHit = (cab.to_buy === 0 || cab.to_sell === 0);
-    $("ledZen").className = "led" + (zenHit ? " on" : "");
-    $("ledCab").className = "led" + (cabHit ? " on" : "");
-    const go = $("gateOut");
-    if (zenHit || cabHit) { go.textContent = "● SIGNAL ZONE"; go.className = "gate-out fire"; }
-    else { go.textContent = "◦ IDLE"; go.className = "gate-out"; }
-
-    // strategy panels
+    miniStrats = strats;
+    renderMini();
     $("strats").innerHTML = strats.map(stratCard).join("");
 
     // graph view
@@ -602,6 +644,7 @@ async function refresh() {
       <td>${t.volume.toFixed(2)}</td>
       <td>${t.entry_price}</td><td>${t.exit_price}</td>
       <td style="color:#93A1B2">${t.reason}</td>
+      <td class="${(t.pips ?? 0) < 0 ? "pl-neg" : "pl-pos"}">${(t.pips ?? 0) >= 0 ? "+" : "−"}${Math.abs(t.pips ?? 0).toFixed(1)}</td>
       <td class="${t.pnl < 0 ? "pl-neg" : "pl-pos"}">${signed(t.pnl)}</td>
     </tr>`).join("");
 
@@ -610,7 +653,7 @@ async function refresh() {
       `<span class="chip">${x.name}: ${x.inputs}</span>`).join("") +
       `<span class="chip">algo ${a.algo ? "ON" : "OFF"}</span>`;
 
-    drawChart(s.equity_hist || []);
+    drawChart(s.equity_hist || [], st.starting_equity ?? 10000);
   } catch (e) {
     $("connDot").className = "dot off"; $("connTxt").textContent = "OFFLINE";
     $("err").textContent = "dashboard can't reach poller: " + e.message;
@@ -622,5 +665,4 @@ setInterval(refresh, 15000);
 </script>
 </body>
 </html>
-
 
