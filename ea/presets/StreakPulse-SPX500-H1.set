@@ -1,0 +1,10 @@
+magicNumber=79001
+iLots=0
+percRisk=3.4
+iMaxOrders=3
+stopLoss=23000
+takeProfit=35000
+iTrailingStart=33000
+iTrailingStep=7500
+iBullishX=12
+iBearishX=4

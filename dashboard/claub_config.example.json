@@ -1,0 +1,18 @@
+{
+  "demo_mode": true,
+  "terminal_exe": "C:\\MT5\\terminal64.exe",
+  "port": 8787,
+  "poll_seconds": 30,
+  "deals_since": "2026-01-01",
+  "starting_equity": 10000.0,
+  "strategies": [
+    {"key": "zenith", "name": "Streak Pulse · S&P 500",
+     "symbol": "#USSPX500", "tf_name": "H1", "magic": 79001,
+     "buy_x": 4, "sell_x": 12,
+     "inputs": "percRisk 3.4 · SL 23000 / TP 35000 · trail 33000/7500"},
+    {"key": "cable", "name": "Streak Pulse · GBPUSD",
+     "symbol": "GBPUSD", "tf_name": "M5", "magic": 79002,
+     "buy_x": 6, "sell_x": 6,
+     "inputs": "0.05 lots · SL 320 / TP 390 · trail 230/190"}
+  ]
+}

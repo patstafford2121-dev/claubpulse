@@ -1,0 +1,13 @@
+# local runtime state — never commit
+claub_config.json
+claub_equity.jsonl
+*.log
+.env
+
+# compiled EA ships via GitHub Releases, not the repo
+*.ex5
+
+# python
+__pycache__/
+*.pyc
+.venv/
