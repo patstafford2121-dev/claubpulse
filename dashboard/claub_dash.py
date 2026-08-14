@@ -20,6 +20,8 @@ from __future__ import annotations
 import json
 import math
 import random
+
+DEMO_SEED = 16
 import subprocess
 import threading
 import time
@@ -42,7 +44,7 @@ DEFAULT_CONFIG = {
     "port": 8787,
     "poll_seconds": 30,
     "deals_since": "2026-01-01",
-    "starting_equity": 10000.0,
+    "starting_equity": 25000.0,
     "strategies": [
         {"key": "zenith", "name": "Streak Pulse · S&P 500",
          "symbol": "#USSPX500", "tf_name": "H1", "magic": 79001,
@@ -244,8 +246,8 @@ def build_summary(equity, balance, floating, algo, strat_out, trades) -> dict:
         "n_trades": len(closed), "wins": len(wins),
         "win_rate_pct": (round(100 * len(wins) / len(closed), 1)
                          if closed else 0),
-        "profit_factor": (round(gross_w / gross_l, 2)
-                          if gross_l > 0 else None),
+        "profit_factor": (round(gross_w / gross_l, 2) if gross_l > 0
+                          else ("∞" if gross_w > 0 else None)),
         "best": max((t["pnl"] for t in closed), default=0),
         "worst": min((t["pnl"] for t in closed), default=0),
         "avg_win": round(gross_w / len(wins), 2) if wins else 0,
@@ -276,7 +278,7 @@ def build_summary(equity, balance, floating, algo, strat_out, trades) -> dict:
         ("5 Win Streak", best >= 5),
         ("Profitable Run", pnl_total > 0 and len(closed) >= 5),
         ("Survived -10% DD", mdd <= -10 and pnl_total > 0),
-        ("Profit Factor > 1.5", (stats["profit_factor"] or 0) > 1.5),
+        ("Profit Factor > 1.5", (gross_l > 0 and gross_w / gross_l > 1.5) or (gross_l == 0 and gross_w > 0)),
         ("Both Barrels", len(strat_keys & {s["key"] for s in STRATS}) >= 2),
     ]
     open_count = sum(len(s["positions"]) for s in strat_out)
@@ -294,14 +296,17 @@ def build_summary(equity, balance, floating, algo, strat_out, trades) -> dict:
 
 def sample_state() -> dict:
     """Synthetic demo data so the dashboard renders with zero setup."""
-    rng = random.Random(42)
+    rng = random.Random(DEMO_SEED)
     now = int(time.time())
     eq, bal = START_EQ, START_EQ
     hist, trades = [], []
     for i in range(400):
         t = now - (400 - i) * 60
         if rng.random() < 0.04:
-            pnl = round(rng.uniform(-60, 90), 2)
+            # demo flavour: a solid-but-honest sample run — most trades win,
+            # losses are real and visible, net drift is modestly positive
+            pnl = round(rng.uniform(60, 240) if rng.random() < 0.68
+                        else rng.uniform(-140, -45), 2)
             bal = round(bal + pnl, 2)
             trades.append({
                 "strategy": rng.choice(["zenith", "cable"]),
@@ -313,7 +318,7 @@ def sample_state() -> dict:
                 "pnl": pnl,
                 "pips": round(abs(pnl) * rng.uniform(0.4, 1.2)
                               * (1 if pnl >= 0 else -1), 1),
-                "reason": "tp" if pnl > 0 else "sl"})
+                "reason": ("trail" if rng.random() < 0.4 else "tp") if pnl > 0 else "sl"})
         eq = round(bal + math.sin(i / 25) * 18 + rng.uniform(-6, 6), 2)
         hist.append({"t": t, "equity": eq, "balance": bal})
     strat_out = []

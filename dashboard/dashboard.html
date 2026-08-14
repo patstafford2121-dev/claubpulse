@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12161C">
 <title>ClaubPulse Command · demo forward run</title>
 <style>
   * { box-sizing: border-box; }
@@ -118,6 +119,12 @@
   .disclaimer { border-left: 3px solid #D9B36A; padding: 8px 12px; background: rgba(217,179,106,.06);
     border-radius: 0 8px 8px 0; color: #C9BE9A; font-size: 11.5px; line-height: 1.6; }
   .err { color: #E08585; font-size: 0.85rem; margin: 0.6rem 0; display: none; }
+  @media (max-width: 700px) {
+    body { padding: 0.9rem 0.6rem 2rem; }
+    .card { overflow-x: auto; }
+    .hero-pnl { font-size: 32px; }
+    .tiles { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -132,7 +139,7 @@
     </div>
     <div class="spacer"></div>
     <div class="hpill" id="acctPill">— · —</div>
-    <div class="hpill demo">DEMO / PAPER</div>
+    <div class="hpill demo" id="acctType">DEMO / PAPER</div>
     <div class="hpill"><span class="dot" id="connDot"></span><span id="connTxt">LIVE</span> · <span class="mono" id="clock">--:--:--</span></div>
   </header>
 
@@ -149,8 +156,8 @@
         <span>Start <span class="mono" id="heroStart">$10,000</span></span>
       </div>
       <div class="legend">
-        <span><span class="sw" style="border-color:#3D84CC"></span>Equity</span>
-        <span><span class="sw" style="border-color:#AD8438;border-top-style:dashed"></span>Balance</span>
+        <span><span class="sw" style="border-color:#3D84CC"></span>P&amp;L (incl. floating)</span>
+        <span><span class="sw" style="border-color:#AD8438;border-top-style:dashed"></span>Realized</span>
       </div>
       <svg id="eqChart" viewBox="0 0 620 220" width="100%" role="img" aria-label="Demo equity and balance over time"></svg>
       <div id="eqTip"></div>
@@ -302,10 +309,24 @@ let chartScale = null;
 function drawChart(histRaw, startEq) {
   const svg = $("eqChart");
   if (!histRaw || histRaw.length < 2) { svg.innerHTML = ""; chartScale = null; $("eqCaption").textContent = "collecting equity samples…"; return; }
-  const s0 = startEq || 10000;
-  const hist = histRaw.map(p => ({ t: p.t,
-    equity: (p.equity / s0 - 1) * 100, balance: (p.balance / s0 - 1) * 100,
-    eqF: p.equity, balF: p.balance }));
+  // Cumulative TRADING P&L (floating + realized), immune to deposits and
+  // withdrawals: a simultaneous balance+equity jump that dwarfs any plausible
+  // trade is treated as a transfer and excluded from the line.
+  const hist = [];
+  let cum = 0, real = 0;
+  for (let i = 0; i < histRaw.length; i++) {
+    const p = histRaw[i];
+    if (i > 0) {
+      const q = histRaw[i - 1];
+      let dEq = p.equity - q.equity;
+      const dBal = p.balance - q.balance;
+      const isTransfer = Math.abs(dBal) > Math.max(400, q.balance * 0.15);
+      if (isTransfer) dEq -= dBal;
+      else real += dBal;
+      cum += dEq;
+    }
+    hist.push({ t: p.t, equity: cum, balance: real, eqF: p.equity, balF: p.balance });
+  }
   const W = 620, H = 220, L = 58, R = 10, T = 10, B = 24;
   const t0 = hist[0].t, t1 = hist[hist.length - 1].t;
   let lo = Infinity, hi = -Infinity;
@@ -317,7 +338,7 @@ function drawChart(histRaw, startEq) {
   let g = "";
   for (const v of niceTicks(lo, hi, 4)) {
     g += `<line x1="${L}" y1="${Y(v).toFixed(1)}" x2="${W - R}" y2="${Y(v).toFixed(1)}" stroke="#232B36"/>`;
-    g += `<text x="${L - 6}" y="${(Y(v) + 3.5).toFixed(1)}" font-size="10" text-anchor="end">${(v >= 0 ? "+" : "") + v.toFixed(2)}%</text>`;
+    g += `<text x="${L - 6}" y="${(Y(v) + 3.5).toFixed(1)}" font-size="10" text-anchor="end">${(v >= 0 ? "+$" : "−$") + Math.abs(v).toFixed(0)}</text>`;
   }
   for (let i = 0; i <= 4; i++) {
     const t = t0 + (t1 - t0) * i / 4, d = new Date(t * 1000);
@@ -352,8 +373,8 @@ eqSvg.addEventListener("pointermove", e => {
   $("eqDotB").setAttribute("cx", x); $("eqDotB").setAttribute("cy", Y(p.balance)); $("eqDotB").style.display = "";
   const tip = $("eqTip"), card = eqSvg.parentElement.getBoundingClientRect();
   tip.innerHTML = new Date(p.t * 1000).toLocaleString([], { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) +
-    `<br><span style="color:#3D84CC">●</span> equity ${(p.equity >= 0 ? "+" : "") + p.equity.toFixed(2)}% · $${p.eqF.toFixed(2)}` +
-    `<br><span style="color:#AD8438">●</span> balance ${(p.balance >= 0 ? "+" : "") + p.balance.toFixed(2)}% · $${p.balF.toFixed(2)}`;
+    `<br><span style="color:#3D84CC">●</span> P&L ${(p.equity >= 0 ? "+$" : "−$") + Math.abs(p.equity).toFixed(2)} (incl. floating)` +
+    `<br><span style="color:#AD8438">●</span> realized ${(p.balance >= 0 ? "+$" : "−$") + Math.abs(p.balance).toFixed(2)} · eq $${p.eqF.toFixed(2)}`;
   tip.style.display = "block";
   const tx = e.clientX - card.left;
   tip.style.left = (tx + 140 > card.width ? tx - 130 : tx + 14) + "px";
@@ -374,7 +395,7 @@ function stratCard(s) {
   const posRows = (s.positions || []).map(p => `<tr>
     <td>${p.ticket}</td>
     <td class="${p.side === "BUY" ? "pl-pos" : "pl-neg"}">${p.side}</td>
-    <td>${p.volume.toFixed(2)}</td>
+    <td>${p.volume != null ? p.volume.toFixed(2) : "—"}</td>
     <td>${p.price_open}</td><td>${p.price_current}</td>
     <td>${p.sl || "—"}</td><td>${p.tp || "—"}</td>
     <td class="${p.profit < 0 ? "pl-neg" : "pl-pos"}">${signed(p.profit)}</td>
@@ -447,7 +468,7 @@ function updateGraph(a) {
       gLinks.push([hub.id, n.id, 46]);
     }
     let i = 0;
-    for (const t of (a.trades || []).filter(t => t.strategy === s.key && t.exit_price != null)) {
+    for (const t of (a.trades || []).filter(t => t.strategy === s.key && t.exit_time != null)) {
       const n = graphNode("tr-" + s.key + "-" + t.entry_time + "-" + (i++), {
         kind: "closed", r: Math.min(14, 4 + Math.sqrt(Math.abs(t.pnl))),
         color: t.pnl >= 0 ? "#58B790" : "#E08585",
@@ -634,15 +655,15 @@ async function refresh() {
     updateGraph(a);
 
     // trade history
-    const closed = (s.account.trades || []).filter(t => t.exit_price != null);
+    const closed = (s.account.trades || []).filter(t => t.exit_time != null);
     $("tlCount").textContent = closed.length;
     $("tlEmpty").style.display = closed.length ? "none" : "block";
     $("tlBody").innerHTML = closed.slice().reverse().slice(0, 60).map(t => `<tr>
       <td>${srvTime(t.entry_time)}</td>
       <td>${t.strategy}</td>
       <td><span class="sidechip">${t.side}</span></td>
-      <td>${t.volume.toFixed(2)}</td>
-      <td>${t.entry_price}</td><td>${t.exit_price}</td>
+      <td>${t.volume != null ? t.volume.toFixed(2) : "—"}</td>
+      <td>${t.entry_price ?? "—"}</td><td>${t.exit_price ?? "—"}</td>
       <td style="color:#93A1B2">${t.reason}</td>
       <td class="${(t.pips ?? 0) < 0 ? "pl-neg" : "pl-pos"}">${(t.pips ?? 0) >= 0 ? "+" : "−"}${Math.abs(t.pips ?? 0).toFixed(1)}</td>
       <td class="${t.pnl < 0 ? "pl-neg" : "pl-pos"}">${signed(t.pnl)}</td>
@@ -651,7 +672,12 @@ async function refresh() {
     // footer chips
     $("chips").innerHTML = strats.map(x =>
       `<span class="chip">${x.name}: ${x.inputs}</span>`).join("") +
-      `<span class="chip">algo ${a.algo ? "ON" : "OFF"}</span>`;
+      `<span class="chip">algo ${a.algo == null ? "n/a" : a.algo ? "ON" : "OFF"}</span>`;
+  const isLive = /live/i.test(a.server || "");
+  const at = $("acctType");
+  if (at) { at.textContent = isLive ? "LIVE · REAL MONEY" : "DEMO / PAPER";
+    at.style.color = isLive ? "#E08585" : "";
+    at.style.borderColor = isLive ? "rgba(224,133,133,.5)" : ""; }
 
     drawChart(s.equity_hist || [], st.starting_equity ?? 10000);
   } catch (e) {

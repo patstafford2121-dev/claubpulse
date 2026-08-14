@@ -4,7 +4,7 @@
   "port": 8787,
   "poll_seconds": 30,
   "deals_since": "2026-01-01",
-  "starting_equity": 10000.0,
+  "starting_equity": 25000.0,
   "strategies": [
     {"key": "zenith", "name": "Streak Pulse · S&P 500",
      "symbol": "#USSPX500", "tf_name": "H1", "magic": 79001,
